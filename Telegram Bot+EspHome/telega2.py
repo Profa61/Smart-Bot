@@ -3,71 +3,84 @@ from time import time
 import random
 import asyncio
 from telebot import types
-#from esphome2 import serv
 import esphome2 as esp
-#from esphome2 import sensor
-#from imp import reload
 import importlib as rel
 import sqlite3
+import wledus as wled
 
+spis = ('Не понимаю о чем речь', 'Просьба выражатся точнее',
+        'Это не то что нужно', 'Что еще скажете',
+        'Тут я вам ничего не скажу', 'Введите pip')
 
-spis = ('не понимаю о чем речь','выражайтесь точнее','это не то что нужно','что еще скажете','тут я вам ничего не скажу','введите pip')
-otvet = ('привет','пока','как дела','ты кто')
-otvet2 = {"Приветствие":"Привет","Прощание":"До скорой встречи"}
-cave = []
-#sensor = 29
-ds18 = 27.0
+number_message_id = []
+
 bot = telebot.TeleBot('6152936632:AAH6tzrKB22bJmpGJXMLoGJ3VuTYtN9psXk')
 GROUP_ID = -834972694
 
-#@bot.message_handler(content_types=['photo'])
-@bot.message_handler(commands=['start'])
-def get_photo(message):
 
+@bot.message_handler(commands=['start'])
+def buttons(message):
     markup = types.InlineKeyboardMarkup()
     btn3 = types.InlineKeyboardButton('Получить значение с датчика', callback_data='temp')
     markup.row(btn3)
     btn1 = types.InlineKeyboardButton('Включить свет', callback_data='on')
     btn2 = types.InlineKeyboardButton('Выключить свет', callback_data='off')
-    markup.row(btn1, btn2,)
-    btn4 = types.InlineKeyboardButton('очистить сеанс', callback_data='delete')
-    markup.row(btn4)
+    markup.row(btn1, btn2)
+    btn4 = types.InlineKeyboardButton('Включить Wled', callback_data='wled_on')
+    btn5 = types.InlineKeyboardButton('Выкл Wled', callback_data='wled_off')
+    markup.row(btn4, btn5)
     bot.send_message(message.chat.id, 'Выбрать действие', reply_markup=markup)
+
+
+def buttons2(callback):
+    markup = types.InlineKeyboardMarkup()
+    btn6 = types.InlineKeyboardButton('20%', callback_data='20')
+    btn7 = types.InlineKeyboardButton('70%', callback_data='70')
+    btn8 = types.InlineKeyboardButton('100%', callback_data='100')
+    markup.row(btn6, btn7, btn8)
+    bot.send_message(callback.message.chat.id, 'Установи яркость(по умолчанию 50%)', reply_markup=markup)
+
 
 @bot.callback_query_handler(func=lambda callback: True)
 def callback_message(callback):
-
     if callback.data == 'on':
-        asyncio.run(esp.serv(deb = True))
-        bot.send_message(callback.message.chat.id, 'Выполнено')
+        buttons2(callback)
+        asyncio.run(esp.serv(non=True))
+        bot.send_message(callback.message.chat.id, 'Подсветка рабочей зоны ВКЛ')
     elif callback.data == 'off':
-        asyncio.run(esp.serv(deb=False))
-        bot.send_message(callback.message.chat.id, 'Выполнено')
+        asyncio.run(esp.serv(non=False))
+        bot.send_message(callback.message.chat.id, 'Подсветка рабочей ВЫКЛ')
     elif callback.data == 'temp':
-        #asyncio.run(esphome2.serv())
         rel.reload(esp)
         bot.send_message(callback.message.chat.id, f'{esp.sensor}')
-    elif callback.data =='delete':
+    elif callback.data == 'delete':
         bot.delete_message(callback.message.chat.id, callback.message.message_id)
-
+    elif callback.data == '20':
+        bot.send_message(callback.message.chat.id, 'Установлено 20%')
+        asyncio.run(esp.serv(value=0.1))
+    elif callback.data == '70':
+        bot.send_message(callback.message.chat.id, 'Установлено 70%')
+        asyncio.run(esp.serv(value=0.7))
+    elif callback.data == '100':
+        bot.send_message(callback.message.chat.id, 'Установлено 100%')
+        asyncio.run(esp.serv(value=1.0))
+    elif callback.data == 'wled_on':
+        asyncio.run(wled.main(stat=True, lig=30))
+        bot.send_message(callback.message.chat.id, 'Wled включился')
+    elif callback.data == 'wled_off':
+        asyncio.run(wled.main(stat=False))
+        bot.send_message(callback.message.chat.id, 'Wled выкл')
 
 
 @bot.message_handler(commands=['help'])
 def maine(message):
     print(message)
-    #asyncio.run(serv(deb = True))
     conn = sqlite3.connect('sostoyanie.sql')
     cur = conn.cursor()
-    cur.execute('CREATE TABLE IF NOT EXISTS users (id int auto_increment primary key, name varchar(50), pass varchar(50))')
+    cur.execute('CREATE TABLE IF NOT EXISTS users (id int auto_increment primary key,name varchar(50), pass varchar(50))')
     conn.commit()
     cur.close()
     conn.close()
-    #bot.send_message(message.chat.id, f'Привет {message.from_user.first_name},запускаю скрипт удаление вашего аккаунта...')
-@bot.message_handler(commands=['stop'])
-def maine2(message):
-    print(message)
-    #asyncio.run(serv(deb = False))
-
 
 
 @bot.message_handler(func=lambda message: message.entities is not None)  # and message.chat.id == GROUP_ID)
@@ -83,37 +96,21 @@ def delete_links(message):
 
 @bot.message_handler()
 def info(message):
-    g = message
     global spis
-    global otvet
-    #global deb
-    cach = open ('cachfile.txt', 'a')
+    cach = open('cachfile.txt', 'a')
     cach.write(message.text + '\t')
     cach.write(message.from_user.first_name + '\n')
-
-
     cach.close()
 
     if message.text.lower() == "привет":
         bot.send_message(message.chat.id, f'Привет, {message.from_user.first_name}👋, введите "pip"')
-
-    #elif message.text.lower() == "включи":
-    #    deb = True
-    #    asyncio.run(main())
-    #elif message.text.lower() == 'выключи':
-    #    deb = False
-    #    asyncio.run(main())
-
     elif message.text.lower() == 'pip':
         print(message.from_user.id)
-        bot.restrict_chat_member(message.chat.id,message.from_user.id, until_date=time() + 600)
+        bot.restrict_chat_member(message.chat.id, message.from_user.id, until_date=time() + 300)
         bot.send_message(message.chat.id, f'Пользователь, {message.from_user.first_name} заблокирован на 10 минут')
     else:
         bot.send_message(message.chat.id, f'{message.from_user.first_name} {random.choice(list(spis))}🤔')
 
 
-
-
 if __name__ == "__main__":
-    bot.infinity_polling()
-#bot.polling(none_stop=True)
+    bot.polling(none_stop=True)

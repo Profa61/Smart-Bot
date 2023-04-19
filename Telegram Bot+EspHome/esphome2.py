@@ -1,30 +1,29 @@
 import aioesphomeapi
 import asyncio
 sensor = None
+IP = "192.168.0.50"
+PORT = 6053
+API = "RX/okru7tmJQIrzb3I9D7uTW65a1/2Nw9BHFhQBi46U="
 
 
-async def serv(deb=None):
+async def serv(non=None, value=None):
 
-
-    cli = aioesphomeapi.APIClient("192.168.0.50", 6053, "MyPass")
+    cli = aioesphomeapi.APIClient(IP, PORT, API)
     await cli.connect(login=True)
 
-    def change_callback(state):
-
-
+    def sens_val(state):
         if type(state) == aioesphomeapi.SensorState:
             global sensor
             sensor = ('%.1f' % state.state)
             print(sensor)
 
-    state = await cli.subscribe_states(change_callback)
+    await cli.subscribe_states(sens_val)
     try:
 
-        state = await cli.list_entities_services()
+        await cli.list_entities_services()
 
-        retu = await cli.light_command(key=4244719125, state=deb, brightness=0.5,)
+        await cli.light_command(key=4244719125, state=non, brightness=value,)
 
-
-    except:RuntimeWarning
+    except: RuntimeWarning
 
 asyncio.run(serv())
