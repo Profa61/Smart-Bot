@@ -1,24 +1,21 @@
 import telebot
+from Secrets import bot_api, secret_comand
 from time import time
 import random
-import asyncio
 from telebot import types
 import esphome2 as esp
 import importlib as rel
 import sqlite3
-import wledus as wled
+from device import Light, Wled
 
 spis = ('Не понимаю о чем речь', 'Просьба выражатся точнее',
-        'Это не то что нужно', 'Что еще скажете',
-        'Тут я вам ничего не скажу', 'Введите pip')
+        'Это не то что нужно', 'Что еще скажете', 'еще немного',
+        'Тут я вам ничего не скажу', 'Введите pip', 'почти угадал')
 
-number_message_id = []
-
-bot = telebot.TeleBot('6152936632:AAH6tzrKB22bJmpGJXMLoGJ3VuTYtN9psXk')
+bot = telebot.TeleBot(bot_api)
 GROUP_ID = -834972694
 
 
-@bot.message_handler(commands=['start'])
 def buttons(message):
     markup = types.InlineKeyboardMarkup()
     btn3 = types.InlineKeyboardButton('Получить значение с датчика', callback_data='temp')
@@ -45,10 +42,10 @@ def buttons2(callback):
 def callback_message(callback):
     if callback.data == 'on':
         buttons2(callback)
-        asyncio.run(esp.serv(non=True))
+        Light(4244719125, True, 0.5)
         bot.send_message(callback.message.chat.id, 'Подсветка рабочей зоны ВКЛ')
     elif callback.data == 'off':
-        asyncio.run(esp.serv(non=False))
+        Light(4244719125, False, 0.0)
         bot.send_message(callback.message.chat.id, 'Подсветка рабочей ВЫКЛ')
     elif callback.data == 'temp':
         rel.reload(esp)
@@ -57,18 +54,18 @@ def callback_message(callback):
         bot.delete_message(callback.message.chat.id, callback.message.message_id)
     elif callback.data == '20':
         bot.send_message(callback.message.chat.id, 'Установлено 20%')
-        asyncio.run(esp.serv(value=0.1))
+        Light(4244719125, True, 0.2)
     elif callback.data == '70':
-        bot.send_message(callback.message.chat.id, 'Установлено 70%')
-        asyncio.run(esp.serv(value=0.7))
+        bot.send_message(callback.message.chat.id, 'Установлено 50%')
+        Light(4244719125, True, 0.5)
     elif callback.data == '100':
-        bot.send_message(callback.message.chat.id, 'Установлено 100%')
-        asyncio.run(esp.serv(value=1.0))
+        bot.send_message(callback.message.chat.id, 'Установлено 90%')
+        Light(4244719125, True, 0.9)
     elif callback.data == 'wled_on':
-        asyncio.run(wled.main(stat=True, lig=30))
+        Wled(True, 255)
         bot.send_message(callback.message.chat.id, 'Wled включился')
     elif callback.data == 'wled_off':
-        asyncio.run(wled.main(stat=False))
+        Wled(False, 0)
         bot.send_message(callback.message.chat.id, 'Wled выкл')
 
 
@@ -77,7 +74,8 @@ def maine(message):
     print(message)
     conn = sqlite3.connect('sostoyanie.sql')
     cur = conn.cursor()
-    cur.execute('CREATE TABLE IF NOT EXISTS users (id int auto_increment primary key,name varchar(50), pass varchar(50))')
+    cur.execute('CREATE TABLE IF NOT EXISTS users (id int auto_increment primary key,'
+                'name varchar(50), pass varchar(50))')
     conn.commit()
     cur.close()
     conn.close()
@@ -91,7 +89,8 @@ def delete_links(message):
         if entity.type in ["url", "text_link"]:
             print('helo')
             bot.delete_message(message.chat.id, message.message_id)
-            bot.send_message(message.chat.id, f'{message.from_user.first_name} {message.from_user.last_name},ссылки не одобряю😡')
+            bot.send_message(message.chat.id, f'{message.from_user.first_name}'
+                                              f' {message.from_user.last_name},ссылки не одобряю😡')
 
 
 @bot.message_handler()
@@ -102,7 +101,9 @@ def info(message):
     cach.write(message.from_user.first_name + '\n')
     cach.close()
 
-    if message.text.lower() == "привет":
+    if message.text.lower() == secret_comand:
+        buttons(message)
+    elif message.text.lower() == "привет":
         bot.send_message(message.chat.id, f'Привет, {message.from_user.first_name}👋, введите "pip"')
     elif message.text.lower() == 'pip':
         print(message.from_user.id)
